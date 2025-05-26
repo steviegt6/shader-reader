@@ -8,7 +8,6 @@
 #endregion
 
 using ShaderDecompiler.CommandLine;
-using ShaderDecompiler.Decompilers;
 using ShaderDecompiler.XNACompatibility;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
@@ -85,39 +84,21 @@ public static partial class Program {
 			return;
 		}
 
-		DecompilationSettings settings = new();
-		if (ctx.ArgumentCache.ContainsKey("minSimplify"))
-			settings.MinimumSimplifications = true;
-
-		if (ctx.ArgumentCache.TryGetValue("complexityThreshold", out object? threshold))
-			settings.ComplexityThreshold = threshold as int? ?? int.MaxValue;
-
-		if (ctx.ArgumentCache.TryGetValue("decompilationFilter", out object? filter))
-			settings.ShaderPathFilter = new Regex((string)filter!, RegexOptions.Compiled);
-
 		string output;
 
 		if (xnb is not null) {
 			using FileStream fs = File.OpenRead(xnb);
 			using BinaryReader reader = new(fs);
 			Effect effect = XnbReader.ReadEffect(reader);
-			output = new EffectDecompiler(effect).Decompile(settings);
 		}
 		else if (fx is not null) {
 			using FileStream fs = File.OpenRead(fx);
 			using BinaryReader reader = new(fs);
 			Effect effect = Effect.Read(reader);
-			output = new EffectDecompiler(effect).Decompile(settings);
 		}
 		else {
 			ctx.Caller.Respond("No input file specified");
 			return;
 		}
-
-		if (@out is not null)
-			File.WriteAllText(@out, output);
-		else 
-			Console.WriteLine(output);
-
 	}
 }
