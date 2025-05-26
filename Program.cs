@@ -7,8 +7,6 @@
 */
 #endregion
 
-using ShaderDecompiler.XNACompatibility;
-
 namespace ShaderDecompiler;
 
 internal static class Program
