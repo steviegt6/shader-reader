@@ -7,98 +7,31 @@
 */
 #endregion
 
-using ShaderDecompiler.CommandLine;
 using ShaderDecompiler.XNACompatibility;
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 namespace ShaderDecompiler;
 
-public static partial class Program {
+public static class Program {
 	public static void Main() {
-		string cmdl = Environment.CommandLine;
+		var fxcAndXnbFiles = Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "*.*", SearchOption.TopDirectoryOnly)
+			.Where(file => file.EndsWith(".fxc", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".xnb", StringComparison.OrdinalIgnoreCase))
+			.ToList();
 
-		string[] argSplit = cmdl.Split(' ', 2);
-		string appName = Path.GetFileNameWithoutExtension(argSplit[0]);
+		foreach (var file in fxcAndXnbFiles) {
+			Console.WriteLine("Reading file: " + file);
 
-		string args = argSplit.Length == 1 ? "" : argSplit[1];
-
-		CommandLine.Command cmd = new(appName) {
-			Description = "HLSL Shader decompilation utility",
-			Arguments = {
-				new("help") { ShortName = 'h', Optional = true },
-
-				new("xnb", typeof(string)) {
-					ShortName = 'x',
-					Optional = true,
-					Description = "XNB file to extract and decompile",
-					Modifier = new ExistingFile()
-				},
-				new("fx", typeof(string)) {
-					ShortName = 'f',
-					Optional = true,
-					Description = "Effect object file to decompile",
-					Modifier = new ExistingFile()
-				},
-				new("out", typeof(string)) {
-					ShortName = 'o',
-					Optional = true,
-					Description = "Output file",
-					Modifier = new ValidFile()
-				},
-
-				new("minSimplify") {
-					ShortName = 'm',
-					Optional = true,
-					Description = "Disable most of simplification algorithms",
-				},
-				new("complexityThreshold", typeof(int)) {
-					ShortName = 't',
-					Optional = true,
-					Description = "Define complexity threshold",
-				},
-
-				new("decompilationFilter", typeof(string)) {
-					ShortName = 'd',
-					Optional = true,
-					Description = 
-					"Filter techniques, passes and shaders to decomple\n" +
-					"Format: Technique/Pass/Shader\n" +
-					"Shader should be either PixelShader, VertexShader\n" +
-					"Supports regular expressions"
-				}
-			},
-			ExecutionMethod = MainCommand
-		};
-		try {
-			cmd.Execute(new(), args);
-		}
-		catch (Exception e) { 
-			Console.WriteLine(e.ToString());
-		}
-	}
-
-	static void MainCommand(Command cmd, CommandContext ctx, string? xnb = null, string? fx = null, string? @out = null) {
-		if (ctx.ArgumentCache.Count == 0 || ctx.ArgumentCache.ContainsKey("help")) {
-			ctx.Caller.Respond(cmd.CreateHelp());
-			return;
-		}
-
-		string output;
-
-		if (xnb is not null) {
-			using FileStream fs = File.OpenRead(xnb);
-			using BinaryReader reader = new(fs);
-			Effect effect = XnbReader.ReadEffect(reader);
-		}
-		else if (fx is not null) {
-			using FileStream fs = File.OpenRead(fx);
-			using BinaryReader reader = new(fs);
-			Effect effect = Effect.Read(reader);
-		}
-		else {
-			ctx.Caller.Respond("No input file specified");
-			return;
+			using var reader = new BinaryReader(File.OpenRead(file));
+			var isXnb = XnbReader.CheckHeader(reader);
+			{
+				reader.BaseStream.Seek(0, SeekOrigin.Begin);
+			}
+			
+			Console.WriteLine("    Is XNB: " + isXnb);
+			
+			var effect = isXnb ? XnbReader.ReadEffect(reader) : Effect.Read(reader);
+			
+			Console.WriteLine("    Parameters: " + effect.Parameters.Length);
+			Console.WriteLine("    Techniques: " + effect.Techniques.Length);
 		}
 	}
 }

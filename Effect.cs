@@ -69,12 +69,6 @@ namespace ShaderDecompiler {
 			ReadParameters(numparams);
 			ReadTechniques(numtechniques);
 
-			uint numsmallobj = reader.ReadUInt32();
-			uint numlargeobj = reader.ReadUInt32();
-
-			ReadSmallObjects(numsmallobj);
-			ReadLargeObjects(numlargeobj);
-
 			Reader = null!;
 		}
 
@@ -147,73 +141,7 @@ namespace ShaderDecompiler {
 				}
 			}
 		}
-
-		void ReadSmallObjects(uint count) {
-			if (count == 0)
-				return;
-
-			for (int i = 0; i < count; i++) {
-				uint index = Reader.ReadUInt32();
-				uint length = Reader.ReadUInt32();
-
-				EffectObject obj = Objects[index];
-
-				if (obj.Type == ObjectType.String) {
-					if (length > 0)
-						obj.Object = ReadStringHere(length);
-					Reader.ReadByte();
-				}
-				else if (obj.Type >= ObjectType.Texture && obj.Type <= ObjectType.Samplercube) {
-					if (length > 0)
-						obj.Object = ReadStringHere(length);
-				}
-				else if (obj.Type == ObjectType.PixelShader || obj.Type == ObjectType.VertexShader) {
-					Debugger.Break();
-				}
-				else {
-					obj.Object = Reader.ReadBytes((int)length);
-				}
-
-				Reader.BaseStream.Seek((4 - length % 4) % 4, SeekOrigin.Current);
-			}
-		}
-		void ReadLargeObjects(uint count) {
-			if (count == 0)
-				return;
-
-			for (int i = 0; i < count; i++) {
-				uint technique = Reader.ReadUInt32();
-				uint index = Reader.ReadUInt32();
-				uint something = Reader.ReadUInt32();
-				uint state = Reader.ReadUInt32();
-				uint type = Reader.ReadUInt32();
-				uint length = Reader.ReadUInt32();
-
-				uint objIndex = technique > Techniques.Length ?
-					((Parameters[index].Value.Object as SamplerState[])![state].Value.Object as uint[])![0] :
-					(Techniques[technique].Passes[index].States[state].Value.Object as uint[])![0];
-
-				EffectObject obj = Objects[objIndex];
-
-				if (obj.Type == ObjectType.String) {
-					if (length > 0)
-						obj.Object = ReadStringHere(length);
-				}
-				else if (obj.Type >= ObjectType.Texture && obj.Type <= ObjectType.Samplercube) {
-					if (length > 0)
-						obj.Object = ReadStringHere(length);
-				}
-				else if (obj.Type == ObjectType.PixelShader || obj.Type == ObjectType.VertexShader) {
-					obj.Object = Shader.Read(Reader);
-				}
-				else {
-					obj.Object = Reader.ReadBytes((int)length);
-				}
-
-				Reader.BaseStream.Seek((4 - length % 4) % 4, SeekOrigin.Current);
-			}
-		}
-
+		
 		void ReadAnnotations(uint count, AnnotatedObject @object) {
 			if (count == 0)
 				return;
