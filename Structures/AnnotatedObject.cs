@@ -9,6 +9,7 @@
 
 namespace ShaderDecompiler.Structures;
 
-public abstract class AnnotatedObject {
-	public Value[] Annotations = [];
+public abstract class AnnotatedObject
+{
+    public Value[] Annotations = [];
 }

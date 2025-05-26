@@ -11,7 +11,7 @@ using ShaderDecompiler.XNACompatibility;
 
 namespace ShaderDecompiler;
 
-public static class Program
+internal static class Program
 {
     public static void Main()
     {
@@ -23,15 +23,9 @@ public static class Program
         {
             Console.WriteLine("Reading file: " + file);
 
-            using var reader = new BinaryReader(File.OpenRead(file));
-            var isXnb = XnbReader.CheckHeader(reader);
-            {
-                reader.BaseStream.Seek(0, SeekOrigin.Begin);
-            }
+            var effect = Effect.ReadXnbOrFxc(file, out var isXnb);
 
             Console.WriteLine("    Is XNB: " + isXnb);
-
-            var effect = isXnb ? XnbReader.ReadEffect(reader) : Effect.Read(reader);
 
             Console.WriteLine("    Parameters: " + effect.Parameters.Length);
             {

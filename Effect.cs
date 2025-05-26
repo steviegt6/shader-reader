@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Text;
 
 using ShaderDecompiler.Structures;
+using ShaderDecompiler.XNACompatibility;
 
 namespace ShaderDecompiler;
 
@@ -22,6 +23,26 @@ public class Effect {
 	public Technique[] Techniques = [];
 	public EffectObject[] Objects = [];
 
+	public static Effect ReadXnbOrFxc(string file, out bool xnb)
+	{
+		return ReadXnbOrFxc(File.OpenRead(file), out xnb);
+	}
+	
+	public static Effect ReadXnbOrFxc(Stream stream, out bool xnb)
+	{
+		return ReadXnbOrFxc(new BinaryReader(stream), out xnb);
+	}
+	
+	public static Effect ReadXnbOrFxc(BinaryReader reader, out bool xnb)
+	{
+		xnb = XnbReader.CheckHeader(reader);
+		{
+			reader.BaseStream.Seek(0, SeekOrigin.Begin);
+		}
+		
+		return xnb ? XnbReader.ReadEffect(reader) : Read(reader);
+	}
+	
 	public static Effect Read(BinaryReader reader) {
 		var magic = reader.ReadUInt32();
 		if (magic == 0xbcf00bcf) {
@@ -197,7 +218,7 @@ public class Effect {
 		value.Semantic = ReadString();
 		value.Type.Elements = reader.ReadUInt32();
 
-		if (value.Type.Class >= ObjectClass.Scalar && value.Type.Class <= ObjectClass.MatrixColumns) {
+		if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns) {
 			value.Type.Columns = reader.ReadUInt32();
 			value.Type.Rows = reader.ReadUInt32();
 		}
@@ -219,7 +240,7 @@ public class Effect {
 	}
 
 	private void ReadValueData(Value value) {
-		if (value.Type.Class >= ObjectClass.Scalar && value.Type.Class <= ObjectClass.MatrixColumns) {
+		if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns) {
 			var size = value.Type.Columns * value.Type.Rows;
 			if (value.Type.Elements > 0)
 			{
@@ -261,10 +282,10 @@ public class Effect {
 
 		}
 		else if (value.Type.Class == ObjectClass.Object) {
-			if (value.Type.Type >= ObjectType.Sampler && value.Type.Type <= ObjectType.Samplercube) {
+			if (value.Type.Type is >= ObjectType.Sampler and <= ObjectType.Samplercube) {
 				var numstates = reader.ReadUInt32();
 
-				SamplerState[] states = new SamplerState[numstates];
+				var states = new SamplerState[numstates];
 
 				for (var i = 0; i < numstates; i++) {
 					SamplerState state = new();
@@ -277,7 +298,7 @@ public class Effect {
 					var statevalueptr = reader.ReadUInt32();
 					state.Value = ReadValue(statetypeptr, statevalueptr);
 
-					if (state.Type == SamplerStateType.Texture && state.Value.Object is uint[] idarray) {
+					if (state is { Type: SamplerStateType.Texture, Value.Object: uint[] idarray }) {
 						Objects[idarray[0]] = new EffectObject {
 							Type = value.Type.Type,
 						};
