@@ -16,7 +16,7 @@ public class TypeInfo {
 	public uint Columns;
 	public uint Elements;
 
-	public Value[] StructMembers = Array.Empty<Value>();
+	public Value[] StructMembers = [];
 
 	public uint GetSize(out uint actualSize) {
 		switch (Class) {
@@ -33,7 +33,7 @@ public class TypeInfo {
 					actualSize = 0;
 
 					foreach (var member in StructMembers) {
-						size += Math.Max(4, member.Type.GetSize(out uint memberActualSize));
+						size += Math.Max(4, member.Type.GetSize(out var memberActualSize));
 
 						actualSize += memberActualSize;
 					}
@@ -65,9 +65,9 @@ public class TypeInfo {
 					uint actualOffset = 0;
 					foreach (var member in StructMembers) {
 						uint memberSize = 4;
-						memberSize = Math.Max(memberSize, member.Type.GetSize(out uint memberActualSize));
+						memberSize = Math.Max(memberSize, member.Type.GetSize(out var memberActualSize));
 						if (memberSize + posOffset > dataPos) {
-							bool result = member.Type.TransformTypeDefaultValueDataPos(dataPos - posOffset, out arrayPos);
+							var result = member.Type.TransformTypeDefaultValueDataPos(dataPos - posOffset, out arrayPos);
 							arrayPos += actualOffset;
 							return result;
 						}
@@ -81,13 +81,17 @@ public class TypeInfo {
 
 			case ObjectClass.MatrixRows:
 			case ObjectClass.MatrixColumns: {
-					uint row = dataPos % 4;
+					var row = dataPos % 4;
 					if (row >= Rows)
+					{
 						return false;
+					}
 
-					uint col = dataPos / 4;
+					var col = dataPos / 4;
 					if (col >= Columns)
+					{
 						return false;
+					}
 
 					arrayPos = row * Columns + col;
 					return true;
@@ -109,7 +113,7 @@ public class TypeInfo {
 	}
 
 	public override string ToString() {
-		string name = Type switch {
+		var name = Type switch {
 			ObjectType.Void => "void",
 			ObjectType.Bool => "bool",
 			ObjectType.Int => "int",
@@ -129,7 +133,7 @@ public class TypeInfo {
 			ObjectType.VertexShader => "VertexShader",
 			ObjectType.PixelFragment => "PixelFragment",
 			ObjectType.VertexFragment => "VertexFragment",
-			_ => "unknown"
+			_ => "unknown",
 		};
 
 		switch (Class) {
@@ -152,7 +156,9 @@ public class TypeInfo {
 		}
 
 		if (Elements > 1)
+		{
 			name += $"[{Elements}]";
+		}
 
 		return name;
 	}

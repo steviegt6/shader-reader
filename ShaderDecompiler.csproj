@@ -7,6 +7,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove=".editorconfig" />
+  </ItemGroup>
+
   <Target Name="CompileShader" AfterTargets="Build" Condition="Exists('TestData/Shader.fx')">
 	<Exec Command="fxc /T fx_2_0 /Fo TestData/Shader.fxb TestData/Shader.fx" />
 	<!-- <Exec Command="fxcompiler" WorkingDirectory="TestData"/> -->

@@ -10,24 +10,26 @@
 namespace ShaderDecompiler;
 
 public struct BitNumber {
-	private readonly uint Number;
+	private readonly uint number;
 
-	public bool this[int index] => ((Number >> index) & 1) != 0;
+	public bool this[int index] => ((number >> index) & 1) != 0;
 	public uint this[Range range] {
 		get {
-			int start = range.Start.IsFromEnd ? 0 : range.Start.Value;
-			int end = range.End.IsFromEnd ? 31 : range.End.Value;
+			var start = range.Start.IsFromEnd ? 0 : range.Start.Value;
+			var end = range.End.IsFromEnd ? 31 : range.End.Value;
 
-			int len = end - start + 1;
+			var len = end - start + 1;
 			uint mask = 0;
-			for (int i = 0; i < len; i++)
+			for (var i = 0; i < len; i++)
+			{
 				mask = (mask << 1) | 1;
+			}
 			mask <<= start;
-			return (Number & mask) >> start;
+			return (number & mask) >> start;
 		}
 	}
 
 	public BitNumber(uint number) {
-		Number = number;
+		this.number = number;
 	}
 }
