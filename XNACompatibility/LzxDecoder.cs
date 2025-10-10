@@ -822,7 +822,7 @@ internal class LzxDecoder
         bitbuf.EnsureBits(16);
         if ((i = table[bitbuf.PeekBits((byte)nbits)]) >= nsyms)
         {
-            j = (uint)(1 << (int)((sizeof(uint) * 8) - nbits));
+            j = (uint)(1 << (int)(sizeof(uint) * 8 - nbits));
             do
             {
                 j >>= 1;
@@ -867,14 +867,14 @@ internal class LzxDecoder
             {
                 int lo = (byte)byteStream.ReadByte();
                 int hi = (byte)byteStream.ReadByte();
-                buffer |= (uint)(((hi << 8) | lo) << (sizeof(uint) * 8) - 16 - bitsleft);
+                buffer |= (uint)(((hi << 8) | lo) << (sizeof(uint) * 8 - 16 - bitsleft));
                 bitsleft += 16;
             }
         }
 
         public uint PeekBits(byte bits)
         {
-            return buffer >> (sizeof(uint) * 8) - bits;
+            return buffer >> (sizeof(uint) * 8 - bits);
         }
 
         public void RemoveBits(byte bits)
@@ -966,7 +966,7 @@ internal struct LzxConstants
 
     public const ushort PRETREE_MAXSYMBOLS = PRETREE_NUM_ELEMENTS;
     public const ushort PRETREE_TABLEBITS = 6;
-    public const ushort MAINTREE_MAXSYMBOLS = NUM_CHARS + (50 * 8);
+    public const ushort MAINTREE_MAXSYMBOLS = NUM_CHARS + 50 * 8;
     public const ushort MAINTREE_TABLEBITS = 12;
     public const ushort LENGTH_MAXSYMBOLS = NUM_SECONDARY_LENGTHS + 1;
     public const ushort LENGTH_TABLEBITS = 12;
