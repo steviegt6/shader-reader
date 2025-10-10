@@ -33,10 +33,10 @@ public class Pass : AnnotatedObject
 
 public class State
 {
+    public bool Ignored = false;
     public string? Name;
     public StateType Type;
     public Value Value = null!;
-    public bool Ignored = false;
 
     public override string ToString()
     {

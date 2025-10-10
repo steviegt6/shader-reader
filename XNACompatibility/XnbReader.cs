@@ -64,22 +64,26 @@ public static class XnbReader
                 {
                     pos += 2L;
                 }
+
                 if (blockSize == 0 || frameSize == 0)
                 {
                     break;
                 }
+
                 dec.Decompress(compressedStream, blockSize, decompressedStream, frameSize);
                 pos += blockSize;
                 compressedStream.Seek(pos, SeekOrigin.Begin);
             }
+
             if (decompressedStream.Position != decompressedSize)
             {
                 throw new Exception("Decompression of xnb content failed. ");
             }
+
             decompressedStream.Seek(0L, SeekOrigin.Begin);
             compressedStream.Dispose();
 
-            reader = new(decompressedStream);
+            reader = new BinaryReader(decompressedStream);
         }
 
         var readerCount = reader.Read7BitEncodedInt();
@@ -89,6 +93,7 @@ public static class XnbReader
             readerTypes[i] = reader.ReadString();
             reader.ReadInt32();
         }
+
         reader.Read7BitEncodedInt();
 
         var readerIndex = reader.Read7BitEncodedInt();

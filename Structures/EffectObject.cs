@@ -11,8 +11,8 @@ namespace ShaderDecompiler.Structures;
 
 public class EffectObject
 {
-    public ObjectType Type;
     public object? Object;
+    public ObjectType Type;
 
     public override string ToString()
     {

@@ -9,354 +9,389 @@
 
 using System.Diagnostics;
 using System.Text;
-
 using ShaderDecompiler.Structures;
 using ShaderDecompiler.XNACompatibility;
 
 namespace ShaderDecompiler;
 
-public class Effect {
-	private long basePosition;
-	private BinaryReader reader = null!; // not null when reading
+public class Effect
+{
+    private long basePosition;
+    public EffectObject[] Objects = [];
 
-	public Parameter[] Parameters = [];
-	public Technique[] Techniques = [];
-	public EffectObject[] Objects = [];
+    public Parameter[] Parameters = [];
+    private BinaryReader reader = null!; // not null when reading
+    public Technique[] Techniques = [];
 
-	public static Effect ReadXnbOrFxc(string file, out bool xnb)
-	{
-		return ReadXnbOrFxc(File.OpenRead(file), out xnb);
-	}
-	
-	public static Effect ReadXnbOrFxc(Stream stream, out bool xnb)
-	{
-		return ReadXnbOrFxc(new BinaryReader(stream), out xnb);
-	}
-	
-	public static Effect ReadXnbOrFxc(BinaryReader reader, out bool xnb)
-	{
-		xnb = XnbReader.CheckHeader(reader);
-		{
-			reader.BaseStream.Seek(0, SeekOrigin.Begin);
-		}
-		
-		return xnb ? XnbReader.ReadEffect(reader) : Read(reader);
-	}
-	
-	public static Effect Read(BinaryReader reader) {
-		var magic = reader.ReadUInt32();
-		if (magic == 0xbcf00bcf) {
-			var skip = reader.ReadUInt32() - 8;
-			reader.BaseStream.Seek(skip, SeekOrigin.Current);
+    public static Effect ReadXnbOrFxc(string file, out bool xnb)
+    {
+        return ReadXnbOrFxc(File.OpenRead(file), out xnb);
+    }
 
-			magic = reader.ReadUInt32();
-		}
+    public static Effect ReadXnbOrFxc(Stream stream, out bool xnb)
+    {
+        return ReadXnbOrFxc(new BinaryReader(stream), out xnb);
+    }
 
-		if (magic != 0xfeff0901)
-		{
-			throw new NotEffectDataException();
-		}
+    public static Effect ReadXnbOrFxc(BinaryReader reader, out bool xnb)
+    {
+        xnb = XnbReader.CheckHeader(reader);
+        {
+            reader.BaseStream.Seek(0, SeekOrigin.Begin);
+        }
 
-		Effect effect = new();
-		effect.LoadEffect(reader);
-		return effect;
+        return xnb ? XnbReader.ReadEffect(reader) : Read(reader);
+    }
 
-		//uint type = (magic & 0xffff0000) >> 16;
-		//reader.BaseStream.Seek(-4, SeekOrigin.Current);
-		//
-		//if (type == 0xffff) // only PixelShader
-		//{
-		//	throw new NotImplementedException();
-		//}
-		//else if (type == 0xfffe) // only VertexShader
-		//{
-		//	throw new NotImplementedException();
-		//}
-		//else throw new InvalidDataException();
-	}
+    public static Effect Read(BinaryReader reader)
+    {
+        var magic = reader.ReadUInt32();
+        if (magic == 0xbcf00bcf)
+        {
+            var skip = reader.ReadUInt32() - 8;
+            reader.BaseStream.Seek(skip, SeekOrigin.Current);
 
-	private void LoadEffect(BinaryReader reader) {
-		this.reader = reader;
-		var offset = reader.ReadUInt32();
+            magic = reader.ReadUInt32();
+        }
 
-		basePosition = reader.BaseStream.Position;
+        if (magic != 0xfeff0901)
+        {
+            throw new NotEffectDataException();
+        }
 
-		reader.BaseStream.Seek(offset, SeekOrigin.Current);
+        Effect effect = new();
+        effect.LoadEffect(reader);
+        return effect;
 
-		var numparams = reader.ReadUInt32();
-		var numtechniques = reader.ReadUInt32();
-		reader.ReadUInt32();
-		var numobjects = reader.ReadUInt32();
+        //uint type = (magic & 0xffff0000) >> 16;
+        //reader.BaseStream.Seek(-4, SeekOrigin.Current);
+        //
+        //if (type == 0xffff) // only PixelShader
+        //{
+        //	throw new NotImplementedException();
+        //}
+        //else if (type == 0xfffe) // only VertexShader
+        //{
+        //	throw new NotImplementedException();
+        //}
+        //else throw new InvalidDataException();
+    }
 
-		if (numobjects > 0)
-		{
-			Objects = new EffectObject[numobjects];
-		}
+    private void LoadEffect(BinaryReader reader)
+    {
+        this.reader = reader;
+        var offset = reader.ReadUInt32();
 
-		ReadParameters(numparams);
-		ReadTechniques(numtechniques);
+        basePosition = reader.BaseStream.Position;
 
-		this.reader = null!;
-	}
+        reader.BaseStream.Seek(offset, SeekOrigin.Current);
 
-	private void ReadParameters(uint count) {
-		if (count == 0)
-		{
-			return;
-		}
+        var numparams = reader.ReadUInt32();
+        var numtechniques = reader.ReadUInt32();
+        reader.ReadUInt32();
+        var numobjects = reader.ReadUInt32();
 
-		Parameters = new Parameter[count];
-		for (var i = 0; i < count; i++) {
-			Parameter p = new();
-			Parameters[i] = p;
+        if (numobjects > 0)
+        {
+            Objects = new EffectObject[numobjects];
+        }
 
-			var typeptr = reader.ReadUInt32();
-			var valueptr = reader.ReadUInt32();
-			p.Flags = reader.ReadUInt32();
-			var numannotations = reader.ReadUInt32();
+        ReadParameters(numparams);
+        ReadTechniques(numtechniques);
 
-			ReadAnnotations(numannotations, p);
-			p.Value = ReadValue(typeptr, valueptr);
+        this.reader = null!;
+    }
 
-		}
-	}
+    private void ReadParameters(uint count)
+    {
+        if (count == 0)
+        {
+            return;
+        }
 
-	private void ReadTechniques(uint count) {
-		if (count == 0)
-		{
-			return;
-		}
+        Parameters = new Parameter[count];
+        for (var i = 0; i < count; i++)
+        {
+            Parameter p = new();
+            Parameters[i] = p;
 
-		Techniques = new Technique[count];
+            var typeptr = reader.ReadUInt32();
+            var valueptr = reader.ReadUInt32();
+            p.Flags = reader.ReadUInt32();
+            var numannotations = reader.ReadUInt32();
 
-		for (var t = 0; t < count; t++) {
-			Technique tech = new();
-			Techniques[t] = tech;
+            ReadAnnotations(numannotations, p);
+            p.Value = ReadValue(typeptr, valueptr);
+        }
+    }
 
-			tech.Name = ReadString();
-			var numannotations = reader.ReadUInt32();
-			var numpasses = reader.ReadUInt32();
+    private void ReadTechniques(uint count)
+    {
+        if (count == 0)
+        {
+            return;
+        }
 
-			ReadAnnotations(numannotations, tech);
+        Techniques = new Technique[count];
 
-			if (numpasses == 0)
-			{
-				continue;
-			}
+        for (var t = 0; t < count; t++)
+        {
+            Technique tech = new();
+            Techniques[t] = tech;
 
-			tech.Passes = new Pass[numpasses];
+            tech.Name = ReadString();
+            var numannotations = reader.ReadUInt32();
+            var numpasses = reader.ReadUInt32();
 
-			for (var p = 0; p < numpasses; p++) {
-				Pass pass = new();
-				tech.Passes[p] = pass;
+            ReadAnnotations(numannotations, tech);
 
-				pass.Name = ReadString();
-				numannotations = reader.ReadUInt32();
-				var numstates = reader.ReadUInt32();
+            if (numpasses == 0)
+            {
+                continue;
+            }
 
-				ReadAnnotations(numannotations, pass);
+            tech.Passes = new Pass[numpasses];
 
-				if (numstates == 0)
-				{
-					continue;
-				}
+            for (var p = 0; p < numpasses; p++)
+            {
+                Pass pass = new();
+                tech.Passes[p] = pass;
 
-				pass.States = new State[numstates];
-				for (var s = 0; s < numstates; s++) {
-					State state = new();
-					pass.States[s] = state;
+                pass.Name = ReadString();
+                numannotations = reader.ReadUInt32();
+                var numstates = reader.ReadUInt32();
 
-					state.Type = (StateType)reader.ReadUInt32();
+                ReadAnnotations(numannotations, pass);
 
-					reader.ReadUInt32();
-					var typeptr = reader.ReadUInt32();
-					var valueptr = reader.ReadUInt32();
+                if (numstates == 0)
+                {
+                    continue;
+                }
 
-					state.Value = ReadValue(typeptr, valueptr);
-				}
-			}
-		}
-	}
+                pass.States = new State[numstates];
+                for (var s = 0; s < numstates; s++)
+                {
+                    State state = new();
+                    pass.States[s] = state;
 
-	private void ReadAnnotations(uint count, AnnotatedObject @object) {
-		if (count == 0)
-		{
-			return;
-		}
+                    state.Type = (StateType)reader.ReadUInt32();
 
-		@object.Annotations = new Value[count];
-		for (var i = 0; i < count; i++) {
-			var typeptr = reader.ReadUInt32();
-			var valueptr = reader.ReadUInt32();
+                    reader.ReadUInt32();
+                    var typeptr = reader.ReadUInt32();
+                    var valueptr = reader.ReadUInt32();
 
-			@object.Annotations[i] = ReadValue(typeptr, valueptr);
-		}
-	}
+                    state.Value = ReadValue(typeptr, valueptr);
+                }
+            }
+        }
+    }
 
-	private Value ReadValue(uint typeptr, uint valueptr) {
-		var readerpos = reader.BaseStream.Position;
-		try {
-			Value value = new();
+    private void ReadAnnotations(uint count, AnnotatedObject @object)
+    {
+        if (count == 0)
+        {
+            return;
+        }
 
-			reader.BaseStream.Seek(basePosition + typeptr, SeekOrigin.Begin);
-			ReadValueInfo(value);
+        @object.Annotations = new Value[count];
+        for (var i = 0; i < count; i++)
+        {
+            var typeptr = reader.ReadUInt32();
+            var valueptr = reader.ReadUInt32();
 
-			reader.BaseStream.Seek(basePosition + valueptr, SeekOrigin.Begin);
-			ReadValueData(value);
+            @object.Annotations[i] = ReadValue(typeptr, valueptr);
+        }
+    }
 
-			return value;
-		}
-		finally {
-			reader.BaseStream.Seek(readerpos, SeekOrigin.Begin);
-		}
-	}
+    private Value ReadValue(uint typeptr, uint valueptr)
+    {
+        var readerpos = reader.BaseStream.Position;
+        try
+        {
+            Value value = new();
 
-	private void ReadValueInfo(Value value) {
-		value.Type.Type = (ObjectType)reader.ReadUInt32();
-		value.Type.Class = (ObjectClass)reader.ReadUInt32();
-		value.Name = ReadString();
-		value.Semantic = ReadString();
-		value.Type.Elements = reader.ReadUInt32();
+            reader.BaseStream.Seek(basePosition + typeptr, SeekOrigin.Begin);
+            ReadValueInfo(value);
 
-		if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns) {
-			value.Type.Columns = reader.ReadUInt32();
-			value.Type.Rows = reader.ReadUInt32();
-		}
-		else if (value.Type.Class == ObjectClass.Struct) {
-			var members = reader.ReadUInt32();
-			List<Value> memberList = [];
-			for (var i = 0; i < members; i++) {
-				Value m = new();
-				ReadValueInfo(m);
-				if (m.Type.Class == ObjectClass.Struct)
-				{
-					members--;
-				}
+            reader.BaseStream.Seek(basePosition + valueptr, SeekOrigin.Begin);
+            ReadValueData(value);
 
-				memberList.Add(m);
-			}
-			value.Type.StructMembers = memberList.ToArray();
-		}
-	}
+            return value;
+        }
+        finally
+        {
+            reader.BaseStream.Seek(readerpos, SeekOrigin.Begin);
+        }
+    }
 
-	private void ReadValueData(Value value) {
-		if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns) {
-			var size = value.Type.Columns * value.Type.Rows;
-			if (value.Type.Elements > 0)
-			{
-				size *= value.Type.Elements;
-			}
+    private void ReadValueInfo(Value value)
+    {
+        value.Type.Type = (ObjectType)reader.ReadUInt32();
+        value.Type.Class = (ObjectClass)reader.ReadUInt32();
+        value.Name = ReadString();
+        value.Semantic = ReadString();
+        value.Type.Elements = reader.ReadUInt32();
 
-			switch (value.Type.Type) {
-				case ObjectType.Int:
-					var ints = new int[size];
-					for (var i = 0; i < size; i++)
-					{
-						ints[i] = reader.ReadInt32();
-					}
-					value.Object = ints;
-					break;
+        if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns)
+        {
+            value.Type.Columns = reader.ReadUInt32();
+            value.Type.Rows = reader.ReadUInt32();
+        }
+        else if (value.Type.Class == ObjectClass.Struct)
+        {
+            var members = reader.ReadUInt32();
+            List<Value> memberList = [];
+            for (var i = 0; i < members; i++)
+            {
+                Value m = new();
+                ReadValueInfo(m);
+                if (m.Type.Class == ObjectClass.Struct)
+                {
+                    members--;
+                }
 
-				case ObjectType.Float:
-					var floats = new float[size];
-					for (var i = 0; i < size; i++)
-					{
-						floats[i] = reader.ReadSingle();
-					}
-					value.Object = floats;
-					break;
+                memberList.Add(m);
+            }
 
-				case ObjectType.Bool:
-					var bools = new bool[size];
-					for (var i = 0; i < size; i++)
-					{
-						bools[i] = reader.ReadBoolean();
-					}
-					value.Object = bools;
-					break;
+            value.Type.StructMembers = memberList.ToArray();
+        }
+    }
 
-				default:
-					Debugger.Break();
-					break;
-			}
+    private void ReadValueData(Value value)
+    {
+        if (value.Type.Class is >= ObjectClass.Scalar and <= ObjectClass.MatrixColumns)
+        {
+            var size = value.Type.Columns * value.Type.Rows;
+            if (value.Type.Elements > 0)
+            {
+                size *= value.Type.Elements;
+            }
 
-		}
-		else if (value.Type.Class == ObjectClass.Object) {
-			if (value.Type.Type is >= ObjectType.Sampler and <= ObjectType.Samplercube) {
-				var numstates = reader.ReadUInt32();
+            switch (value.Type.Type)
+            {
+                case ObjectType.Int:
+                    var ints = new int[size];
+                    for (var i = 0; i < size; i++)
+                    {
+                        ints[i] = reader.ReadInt32();
+                    }
 
-				var states = new SamplerState[numstates];
+                    value.Object = ints;
+                    break;
 
-				for (var i = 0; i < numstates; i++) {
-					SamplerState state = new();
-					states[i] = state;
+                case ObjectType.Float:
+                    var floats = new float[size];
+                    for (var i = 0; i < size; i++)
+                    {
+                        floats[i] = reader.ReadSingle();
+                    }
 
-					state.Type = (SamplerStateType)(reader.ReadUInt32() & ~0xA0);
-					var something = reader.ReadUInt32();
+                    value.Object = floats;
+                    break;
 
-					var statetypeptr = reader.ReadUInt32();
-					var statevalueptr = reader.ReadUInt32();
-					state.Value = ReadValue(statetypeptr, statevalueptr);
+                case ObjectType.Bool:
+                    var bools = new bool[size];
+                    for (var i = 0; i < size; i++)
+                    {
+                        bools[i] = reader.ReadBoolean();
+                    }
 
-					if (state is { Type: SamplerStateType.Texture, Value.Object: uint[] idarray }) {
-						Objects[idarray[0]] = new EffectObject {
-							Type = value.Type.Type,
-						};
-					}
-				}
-				value.Object = states;
-			}
-			else {
-				var count = Math.Max(value.Type.Elements, 1);
-				var ids = new uint[count];
+                    value.Object = bools;
+                    break;
 
-				for (var i = 0; i < count; i++) {
-					ids[i] = reader.ReadUInt32();
-					Objects[ids[i]] = new EffectObject {
-						Type = value.Type.Type,
-					};
-				}
+                default:
+                    Debugger.Break();
+                    break;
+            }
+        }
+        else if (value.Type.Class == ObjectClass.Object)
+        {
+            if (value.Type.Type is >= ObjectType.Sampler and <= ObjectType.Samplercube)
+            {
+                var numstates = reader.ReadUInt32();
 
-				value.Object = ids;
-			}
-		}
-		else if (value.Type.Class == ObjectClass.Struct) {
-			for (var i = 0; i < value.Type.StructMembers.Length; i++)
-			{
-				ReadValueData(value.Type.StructMembers[i]);
-			}
-		}
-	}
+                var states = new SamplerState[numstates];
 
-	private string? ReadString() {
-		var ptr = reader.ReadUInt32();
-		if (ptr == 0 || basePosition + ptr >= reader.BaseStream.Length)
-		{
-			return null;
-		}
+                for (var i = 0; i < numstates; i++)
+                {
+                    SamplerState state = new();
+                    states[i] = state;
 
-		var readerpos = reader.BaseStream.Position;
-		try {
-			reader.BaseStream.Seek(basePosition + ptr, SeekOrigin.Begin);
+                    state.Type = (SamplerStateType)(reader.ReadUInt32() & ~0xA0);
+                    var something = reader.ReadUInt32();
 
-			var len = reader.ReadUInt32();
-			return ReadStringHere(len);
-		}
-		finally {
-			reader.BaseStream.Seek(readerpos, SeekOrigin.Begin);
-		}
-	}
+                    var statetypeptr = reader.ReadUInt32();
+                    var statevalueptr = reader.ReadUInt32();
+                    state.Value = ReadValue(statetypeptr, statevalueptr);
 
-	private string? ReadStringHere(uint length) {
-		if (length == 0)
-		{
-			return null;
-		}
+                    if (state is { Type: SamplerStateType.Texture, Value.Object: uint[] idarray })
+                    {
+                        Objects[idarray[0]] = new EffectObject
+                        {
+                            Type = value.Type.Type,
+                        };
+                    }
+                }
 
-		return Encoding.ASCII.GetString(reader.ReadBytes((int)length - 1));
-	}
+                value.Object = states;
+            }
+            else
+            {
+                var count = Math.Max(value.Type.Elements, 1);
+                var ids = new uint[count];
 
-	public class NotEffectDataException : Exception {
+                for (var i = 0; i < count; i++)
+                {
+                    ids[i] = reader.ReadUInt32();
+                    Objects[ids[i]] = new EffectObject
+                    {
+                        Type = value.Type.Type,
+                    };
+                }
 
-	}
+                value.Object = ids;
+            }
+        }
+        else if (value.Type.Class == ObjectClass.Struct)
+        {
+            for (var i = 0; i < value.Type.StructMembers.Length; i++)
+            {
+                ReadValueData(value.Type.StructMembers[i]);
+            }
+        }
+    }
+
+    private string? ReadString()
+    {
+        var ptr = reader.ReadUInt32();
+        if (ptr == 0 || basePosition + ptr >= reader.BaseStream.Length)
+        {
+            return null;
+        }
+
+        var readerpos = reader.BaseStream.Position;
+        try
+        {
+            reader.BaseStream.Seek(basePosition + ptr, SeekOrigin.Begin);
+
+            var len = reader.ReadUInt32();
+            return ReadStringHere(len);
+        }
+        finally
+        {
+            reader.BaseStream.Seek(readerpos, SeekOrigin.Begin);
+        }
+    }
+
+    private string? ReadStringHere(uint length)
+    {
+        if (length == 0)
+        {
+            return null;
+        }
+
+        return Encoding.ASCII.GetString(reader.ReadBytes((int)length - 1));
+    }
+
+    public class NotEffectDataException : Exception { }
 }

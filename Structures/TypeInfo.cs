@@ -12,12 +12,12 @@ namespace ShaderDecompiler.Structures;
 public class TypeInfo
 {
     public ObjectClass Class;
-    public ObjectType Type;
-    public uint Rows;
     public uint Columns;
     public uint Elements;
+    public uint Rows;
 
     public Value[] StructMembers = [];
+    public ObjectType Type;
 
     public uint GetSize(out uint actualSize)
     {
@@ -42,6 +42,7 @@ public class TypeInfo
 
                     actualSize += memberActualSize;
                 }
+
                 return size;
             }
 
@@ -104,7 +105,7 @@ public class TypeInfo
                     return false;
                 }
 
-                arrayPos = row * Columns + col;
+                arrayPos = (row * Columns) + col;
                 return true;
             }
 
@@ -119,6 +120,7 @@ public class TypeInfo
             case ObjectClass.Object:
                 return false;
         }
+
         return false;
     }
 

@@ -11,10 +11,10 @@ namespace ShaderDecompiler.Structures;
 
 public class Value
 {
-    public TypeInfo Type = new();
-    public object? Object;
     public string? Name;
+    public object? Object;
     public string? Semantic;
+    public TypeInfo Type = new();
 
     public override string ToString()
     {
