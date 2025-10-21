@@ -2,13 +2,18 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
         <EditorConfigFiles Remove=".editorconfig"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="System.Memory" Version="4.6.3"/>
     </ItemGroup>
 
     <Target Name="CompileShader" AfterTargets="Build" Condition="Exists('TestData/Shader.fx')">

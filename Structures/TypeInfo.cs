@@ -105,7 +105,7 @@ public class TypeInfo
                     return false;
                 }
 
-                arrayPos = row * Columns + col;
+                arrayPos = (row * Columns) + col;
                 return true;
             }
 
@@ -166,7 +166,7 @@ public class TypeInfo
                 break;
 
             case ObjectClass.Struct:
-                name = $"struct {{\n{string.Join('\n', StructMembers.Select(m => $"\t{m.ToString().Replace("\n", "\n\t")}"))}\n}}";
+                name = $"struct {{\n{string.Join("\n", StructMembers.Select(m => $"\t{m.ToString().Replace("\n", "\n\t")}"))}\n}}";
                 break;
         }
 

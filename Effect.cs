@@ -16,6 +16,8 @@ namespace ShaderDecompiler;
 
 public class Effect
 {
+    public class NotEffectDataException : Exception { }
+
     private long basePosition;
     public EffectObject[] Objects = [];
 
@@ -392,6 +394,4 @@ public class Effect
 
         return Encoding.ASCII.GetString(reader.ReadBytes((int)length - 1));
     }
-
-    public class NotEffectDataException : Exception { }
 }

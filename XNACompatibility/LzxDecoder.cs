@@ -35,6 +35,107 @@ namespace ShaderDecompiler.XNACompatibility;
 
 internal class LzxDecoder
 {
+#region Our BitBuffer Class
+    private class BitBuffer
+    {
+        private readonly Stream byteStream;
+        private byte bitsleft;
+        private uint buffer;
+
+        public BitBuffer(Stream stream)
+        {
+            byteStream = stream;
+            InitBitStream();
+        }
+
+        public void InitBitStream()
+        {
+            buffer = 0;
+            bitsleft = 0;
+        }
+
+        public void EnsureBits(byte bits)
+        {
+            while (bitsleft < bits)
+            {
+                int lo = (byte)byteStream.ReadByte();
+                int hi = (byte)byteStream.ReadByte();
+                buffer |= (uint)(((hi << 8) | lo) << (sizeof(uint) * 8) - 16 - bitsleft);
+                bitsleft += 16;
+            }
+        }
+
+        public uint PeekBits(byte bits)
+        {
+            return buffer >> (sizeof(uint) * 8) - bits;
+        }
+
+        public void RemoveBits(byte bits)
+        {
+            buffer <<= bits;
+            bitsleft -= bits;
+        }
+
+        public uint ReadBits(byte bits)
+        {
+            uint ret = 0;
+
+            if (bits > 0)
+            {
+                EnsureBits(bits);
+                ret = PeekBits(bits);
+                RemoveBits(bits);
+            }
+
+            return ret;
+        }
+
+        public uint GetBuffer()
+        {
+            return buffer;
+        }
+
+        public byte GetBitsLeft()
+        {
+            return bitsleft;
+        }
+    }
+#endregion
+
+    private struct LzxState
+    {
+        public uint R0, R1, R2;                  // For the LRU offset system
+        public ushort MainElements;              // Number of main tree elements
+        public int HeaderRead;                   // Have we started decoding at all yet?
+        public LzxConstants.Blocktype BlockType; // Type of this block
+        public uint BlockLength;                 // Uncompressed length of this block
+        public uint BlockRemaining;              // Uncompressed bytes still left to decode
+        public uint FramesRead;                  // The number of CFDATA blocks processed
+        public int IntelFilesize;                // Magic header value used for transform
+        public int IntelCurpos;                  // Current offset in transform space
+        public int IntelStarted;                 // Have we seen any translateable data yet?
+
+        public ushort[] PretreeTable;
+        public byte[] PretreeLen;
+        public ushort[] MaintreeTable;
+        public byte[] MaintreeLen;
+        public ushort[] LengthTable;
+        public byte[] LengthLen;
+        public ushort[] AlignedTable;
+        public byte[] AlignedLen;
+
+        /* NEEDED MEMBERS
+         * CAB actualsize
+         * CAB window
+         * CAB window_size
+         * CAB window_posn
+         */
+        public uint ActualSize;
+        public byte[] Window;
+        public uint WindowSize;
+        public uint WindowPosn;
+    }
+
     public static uint[]? PositionBase;
     public static byte[]? ExtraBits;
 
@@ -822,7 +923,7 @@ internal class LzxDecoder
         bitbuf.EnsureBits(16);
         if ((i = table[bitbuf.PeekBits((byte)nbits)]) >= nsyms)
         {
-            j = (uint)(1 << (int)(sizeof(uint) * 8 - nbits));
+            j = (uint)(1 << (int)((sizeof(uint) * 8) - nbits));
             do
             {
                 j >>= 1;
@@ -840,107 +941,6 @@ internal class LzxDecoder
         bitbuf.RemoveBits((byte)j);
 
         return i;
-    }
-
-#region Our BitBuffer Class
-    private class BitBuffer
-    {
-        private readonly Stream byteStream;
-        private byte bitsleft;
-        private uint buffer;
-
-        public BitBuffer(Stream stream)
-        {
-            byteStream = stream;
-            InitBitStream();
-        }
-
-        public void InitBitStream()
-        {
-            buffer = 0;
-            bitsleft = 0;
-        }
-
-        public void EnsureBits(byte bits)
-        {
-            while (bitsleft < bits)
-            {
-                int lo = (byte)byteStream.ReadByte();
-                int hi = (byte)byteStream.ReadByte();
-                buffer |= (uint)(((hi << 8) | lo) << (sizeof(uint) * 8 - 16 - bitsleft));
-                bitsleft += 16;
-            }
-        }
-
-        public uint PeekBits(byte bits)
-        {
-            return buffer >> (sizeof(uint) * 8 - bits);
-        }
-
-        public void RemoveBits(byte bits)
-        {
-            buffer <<= bits;
-            bitsleft -= bits;
-        }
-
-        public uint ReadBits(byte bits)
-        {
-            uint ret = 0;
-
-            if (bits > 0)
-            {
-                EnsureBits(bits);
-                ret = PeekBits(bits);
-                RemoveBits(bits);
-            }
-
-            return ret;
-        }
-
-        public uint GetBuffer()
-        {
-            return buffer;
-        }
-
-        public byte GetBitsLeft()
-        {
-            return bitsleft;
-        }
-    }
-#endregion
-
-    private struct LzxState
-    {
-        public uint R0, R1, R2;                  // For the LRU offset system
-        public ushort MainElements;              // Number of main tree elements
-        public int HeaderRead;                   // Have we started decoding at all yet?
-        public LzxConstants.Blocktype BlockType; // Type of this block
-        public uint BlockLength;                 // Uncompressed length of this block
-        public uint BlockRemaining;              // Uncompressed bytes still left to decode
-        public uint FramesRead;                  // The number of CFDATA blocks processed
-        public int IntelFilesize;                // Magic header value used for transform
-        public int IntelCurpos;                  // Current offset in transform space
-        public int IntelStarted;                 // Have we seen any translateable data yet?
-
-        public ushort[] PretreeTable;
-        public byte[] PretreeLen;
-        public ushort[] MaintreeTable;
-        public byte[] MaintreeLen;
-        public ushort[] LengthTable;
-        public byte[] LengthLen;
-        public ushort[] AlignedTable;
-        public byte[] AlignedLen;
-
-        /* NEEDED MEMBERS
-         * CAB actualsize
-         * CAB window
-         * CAB window_size
-         * CAB window_posn
-         */
-        public uint ActualSize;
-        public byte[] Window;
-        public uint WindowSize;
-        public uint WindowPosn;
     }
 }
 
@@ -966,7 +966,7 @@ internal struct LzxConstants
 
     public const ushort PRETREE_MAXSYMBOLS = PRETREE_NUM_ELEMENTS;
     public const ushort PRETREE_TABLEBITS = 6;
-    public const ushort MAINTREE_MAXSYMBOLS = NUM_CHARS + 50 * 8;
+    public const ushort MAINTREE_MAXSYMBOLS = NUM_CHARS + (50 * 8);
     public const ushort MAINTREE_TABLEBITS = 12;
     public const ushort LENGTH_MAXSYMBOLS = NUM_SECONDARY_LENGTHS + 1;
     public const ushort LENGTH_TABLEBITS = 12;
