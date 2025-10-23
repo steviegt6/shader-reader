@@ -11,7 +11,7 @@ namespace ShaderDecompiler.XNACompatibility;
 
 public static class XnbReader
 {
-    private static readonly byte[] xnb_magic = "XNB"u8.ToArray();
+    private static readonly byte[] xnb_magic = [0x58, 0x4E, 0x42]; // 'XNB'
 
     public static bool CheckHeader(BinaryReader reader)
     {
