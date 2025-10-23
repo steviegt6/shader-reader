@@ -93,13 +93,16 @@ public class Effect
         reader.ReadUInt32();
         var numobjects = reader.ReadUInt32();
 
-        if (numobjects > 0)
-        {
-            Objects = new EffectObject[numobjects];
-        }
+        Objects = new EffectObject[numobjects];
 
         ReadParameters(numparams);
         ReadTechniques(numtechniques);
+
+        uint numsmallobj = reader.ReadUInt32();
+        uint numlargeobj = reader.ReadUInt32();
+
+        ReadSmallObjects(numsmallobj);
+        ReadLargeObjects(numlargeobj, (int)numsmallobj);
 
         this.reader = null!;
     }
@@ -185,6 +188,100 @@ public class Effect
                     state.Value = ReadValue(typeptr, valueptr);
                 }
             }
+        }
+    }
+
+    private void ReadSmallObjects(uint count)
+    {
+        if (count == 0)
+            return;
+
+        for (int i = 1; i < count + 1; i++)
+        {
+            uint index = reader.ReadUInt32();
+            uint length = reader.ReadUInt32();
+
+            EffectObject obj = Objects[index];
+
+            if (obj.Type == ObjectType.String)
+            {
+                if (length > 0)
+                    obj.Object = ReadStringHere(length);
+                reader.ReadByte();
+            }
+            else if (obj.Type >= ObjectType.Texture && obj.Type <= ObjectType.Samplercube)
+            {
+                if (length > 0)
+                    obj.Object = ReadStringHere(length);
+            }
+            else if (obj.Type == ObjectType.PixelShader || obj.Type == ObjectType.VertexShader)
+            {
+                // throw new Exception("unsupported");
+                obj.Object = reader.ReadBytes((int)length);
+            }
+            else
+            {
+                obj.Object = reader.ReadBytes((int)length);
+            }
+
+            reader.BaseStream.Seek((4 - length % 4) % 4, SeekOrigin.Current);
+        }
+    }
+
+    private void ReadLargeObjects(uint count, int numsmallobjects)
+    {
+        if (count == 0)
+            return;
+
+        var numobjects = numsmallobjects + count + 1;
+        for (int i = numsmallobjects + 1; i < numobjects; i++)
+        {
+            uint technique = reader.ReadUInt32();
+            uint index = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
+            uint state = reader.ReadUInt32();
+            uint type = reader.ReadUInt32();
+            uint length = reader.ReadUInt32();
+
+            /*
+            uint objIndex = technique > Techniques.Length
+                ? ((Parameters[index].Value.Object as SamplerState[])![state].Value.Object as uint[])![0]
+                : (Techniques[technique].Passes[index].States[state].Value.Object as uint[])![0];
+            */
+            uint objIndex;
+            if (technique == -1)
+            {
+                objIndex = ((Parameters[index].Value.Object as SamplerState[])![state].Value.Object as uint[])![0];
+            }
+            else
+            {
+                objIndex = (Techniques[technique].Passes[index].States[state].Value.Object as uint[])![0];
+            }
+
+            EffectObject obj = Objects[objIndex];
+
+            if (obj.Type == ObjectType.String)
+            {
+                if (length > 0)
+                    obj.Object = ReadStringHere(length);
+            }
+            else if (obj.Type >= ObjectType.Texture && obj.Type <= ObjectType.Samplercube)
+            {
+                if (length > 0)
+                    obj.Object = ReadStringHere(length);
+            }
+            else if (obj.Type == ObjectType.PixelShader || obj.Type == ObjectType.VertexShader)
+            {
+                // TODO
+                // obj.Object = Shader.Read(reader);
+                obj.Object = reader.ReadBytes((int)length);
+            }
+            else
+            {
+                obj.Object = reader.ReadBytes((int)length);
+            }
+
+            reader.BaseStream.Seek((4 - length % 4) % 4, SeekOrigin.Current);
         }
     }
 
